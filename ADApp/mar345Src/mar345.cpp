@@ -47,7 +47,7 @@
 #define MAX_FILENAME_LEN 256
 #define MAR345_SOCKET_TIMEOUT 1.0
 #define MAR345_COMMAND_TIMEOUT 180.0
-#define MAR345_POLL_DELAY .1
+#define MAR345_POLL_DELAY .01
 
 typedef enum {
     TMInternal,
@@ -125,6 +125,7 @@ public:
     /* Our data */
     epicsEventId startEventId;
     epicsEventId stopEventId;
+    epicsEventId abortEventId;
     epicsTimeStamp acqStartTime;
     epicsTimeStamp acqEndTime;
     epicsTimerId timerId;
@@ -142,9 +143,11 @@ typedef enum {
         = ADFirstDriverParam,
     mar345EraseMode,
     mar345NumErase,
+    mar345NumErased,
     mar345ChangeMode,
     mar345Size,
     mar345Res,
+    mar345Abort,
     ADLastDriverParam
 } mar345Param_t;
 
@@ -152,9 +155,11 @@ static asynParamString_t mar345ParamString[] = {
     {mar345Erase,              "MAR_ERASE"},
     {mar345EraseMode,          "MAR_ERASE_MODE"},
     {mar345NumErase,           "MAR_NUM_ERASE"},
+    {mar345NumErased,          "MAR_NUM_ERASED"},
     {mar345ChangeMode,         "MAR_CHANGE_MODE"},
     {mar345Size,               "MAR_SIZE"},
     {mar345Res,                "MAR_RESOLUTION"},
+    {mar345Abort,              "MAR_ABORT"},
 };
 
 #define NUM_MAR345_PARAMS (sizeof(mar345ParamString)/sizeof(mar345ParamString[0]))
@@ -265,6 +270,7 @@ asynStatus mar345::waitForCompletion(const char *doneString, double timeout)
     asynStatus status;
     double elapsedTime;
     epicsTimeStamp start, now;
+    const char *functionName = "waitForCompletion";
  
     epicsTimeGetCurrent(&start);
     while (1) {
@@ -276,9 +282,10 @@ asynStatus mar345::waitForCompletion(const char *doneString, double timeout)
         }
         epicsTimeGetCurrent(&now);
         elapsedTime = epicsTimeDiffInSeconds(&now, &start);
-        if (elapsedTime > timeout) return(asynError);
-        if (epicsEventTryWait(this->stopEventId) == epicsEventWaitOK) {
-            writeServer("COMMAND_ABORT");
+        if (elapsedTime > timeout) {
+            asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR,
+                "%s:%s: error waiting for response from marServer\n",
+                driverName, functionName);
             return(asynError);
         }
     }
@@ -287,7 +294,7 @@ asynStatus mar345::waitForCompletion(const char *doneString, double timeout)
 asynStatus mar345::changeMode()
 {
     asynStatus status=asynSuccess;
-    const char *functionName = "changeMode";
+    //const char *functionName = "changeMode";
     int size, res;
     int sizeX;
 
@@ -302,17 +309,9 @@ asynStatus mar345::changeMode()
     epicsSnprintf(this->toServer, sizeof(this->toServer), "COMMAND CHANGE %d", imageSizes[res][size]);
     writeServer(this->toServer);
     status = waitForCompletion("MODE_CHANGE  Ended o.k.", MAR345_COMMAND_TIMEOUT);
-    if (status) {
-        asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR,
-            "%s:%s: error waiting for response from marServer\n",
-            driverName, functionName);
-        setIntegerParam(ADStatus, mar345StatusError);    
-    } else {
-        setIntegerParam(ADStatus, mar345StatusIdle);
-    }
+    setIntegerParam(ADStatus, mar345StatusIdle);
     setIntegerParam(mar345ChangeMode, 0);
     callParamCallbacks();
-    this->mode = mar345ModeIdle;
     return(status);
 }
 
@@ -321,29 +320,28 @@ asynStatus mar345::erase()
     int numErase;
     int i;
     asynStatus status=asynSuccess;
-    const char *functionName = "erase";
+    //const char *functionName = "erase";
 
     getIntegerParam(mar345NumErase, &numErase);
     if (numErase < 1) numErase=1;
     setIntegerParam(ADStatus, mar345StatusErase);
+    setIntegerParam(mar345NumErased, 0);
     callParamCallbacks();
     for (i=0; i<numErase; i++) {
-         epicsSnprintf(this->toServer, sizeof(this->toServer), "COMMAND ERASE");
-         writeServer(this->toServer);
-         status = waitForCompletion("SCAN_DATA    Ended o.k.", MAR345_COMMAND_TIMEOUT);
-         if (status) break;
+        if (epicsEventTryWait(this->abortEventId) == epicsEventWaitOK) {
+            status = asynError;
+            break;
+        }
+        epicsSnprintf(this->toServer, sizeof(this->toServer), "COMMAND ERASE");
+        writeServer(this->toServer);
+        status = waitForCompletion("SCAN_DATA    Ended o.k.", MAR345_COMMAND_TIMEOUT);
+        if (status) break;
+        setIntegerParam(mar345NumErased, i+1);
+        callParamCallbacks();
     }
-    if (status) {
-        asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR,
-            "%s:%s: error waiting for response from marServer\n",
-            driverName, functionName);
-        setIntegerParam(ADStatus, mar345StatusError);    
-    } else {
-        setIntegerParam(ADStatus, mar345StatusIdle);
-    }
+    setIntegerParam(ADStatus, mar345StatusIdle);
     setIntegerParam(mar345Erase, 0);
     callParamCallbacks();
-    this->mode = mar345ModeIdle;
     return(status);
 }
 
@@ -389,9 +387,10 @@ void mar345::setShutter(int open)
 
 asynStatus mar345::acquireFrame()
 {
-    int status;
+    asynStatus status=asynSuccess;
     epicsTimeStamp startTime, currentTime;
     int eraseMode;
+    epicsEventWaitStatus waitStatus;
     int imageCounter;
     int arrayCallbacks;
     double acquireTime;
@@ -400,7 +399,7 @@ asynStatus mar345::acquireFrame()
     int shutterMode, useShutter;
     char tempFileName[MAX_FILENAME_LEN];
     char fullFileName[MAX_FILENAME_LEN];
-    const char *functionName = "acquireframe";
+    //const char *functionName = "acquireframe";
 
     /* Get current values of some parameters */
     getDoubleParam(ADAcquireTime, &acquireTime);
@@ -417,8 +416,11 @@ asynStatus mar345::acquireFrame()
     /* We need to append the extension */
     epicsSnprintf(fullFileName, sizeof(fullFileName), "%s.mar%d", tempFileName, imageSizes[res][size]);
 
-    /* Get the erase mode */
-    if (eraseMode == mar345EraseBefore) this->erase();
+    /* Erase before exposure if set */
+    if (eraseMode == mar345EraseBefore) {
+        status = this->erase();
+        if (status) return(status);
+    }
     
     /* Set the the start time for the TimeRemaining counter */
     epicsTimeGetCurrent(&startTime);
@@ -431,10 +433,14 @@ asynStatus mar345::acquireFrame()
     setIntegerParam(ADStatus, mar345StatusExpose);
     callParamCallbacks();
     while(1) {
+        if (epicsEventTryWait(this->abortEventId) == epicsEventWaitOK) {
+            status = asynError;
+            break;
+        }
         epicsMutexUnlock(this->mutexId);
-        status = epicsEventWaitWithTimeout(this->stopEventId, MAR345_POLL_DELAY);
+        waitStatus = epicsEventWaitWithTimeout(this->stopEventId, MAR345_POLL_DELAY);
         epicsMutexLock(this->mutexId);
-        if (status == epicsEventWaitOK) {
+        if (waitStatus == epicsEventWaitOK) {
             /* The acquisition was stopped before the time was complete */
             epicsTimerCancel(this->timerId);
             break;
@@ -448,6 +454,10 @@ asynStatus mar345::acquireFrame()
     }
     setDoubleParam(ADTimeRemaining, 0.0);
     if (useShutter) setShutter(0);
+    setIntegerParam(ADStatus, mar345StatusIdle);
+    callParamCallbacks();
+    // If the exposure was aborted return error
+    if (status) return asynError;
     setIntegerParam(ADStatus, mar345StatusScan);
     callParamCallbacks();
     epicsSnprintf(this->toServer, sizeof(this->toServer), "COMMAND SCAN %s", fullFileName);
@@ -456,9 +466,6 @@ asynStatus mar345::acquireFrame()
     writeServer(this->toServer);
     status = waitForCompletion("SCAN_DATA    Ended o.k.", MAR345_COMMAND_TIMEOUT);
     if (status) {
-        asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR,
-            "%s:%s: error waiting for response from marServer\n",
-            driverName, functionName);
         return asynError;
     }
     getIntegerParam(ADImageCounter, &imageCounter);
@@ -471,7 +478,11 @@ asynStatus mar345::acquireFrame()
     if (arrayCallbacks) {
         getImageData();
     }
-    return asynSuccess;
+
+    /* Erase after scanning if set */
+    if (eraseMode == mar345EraseAfter) status = this->erase();
+
+    return status;
 }
 
 static void mar345TaskC(void *drvPvt)
@@ -519,6 +530,7 @@ void mar345::mar345Task()
                 for (numImagesCounter=0;
                         numImagesCounter<numImages || (imageMode == ADImageContinuous); 
                         numImagesCounter++) {
+                    if (epicsEventTryWait(this->abortEventId) == epicsEventWaitOK) break;
                     setIntegerParam(ADNumImagesCounter, numImagesCounter);
                     callParamCallbacks();
                     status = acquireFrame();
@@ -534,11 +546,12 @@ void mar345::mar345Task()
                     getDoubleParam(ADAcquirePeriod, &acquirePeriod);
                     delayTime = acquirePeriod - elapsedTime;
                     if (delayTime > 0.) {
-                        setIntegerParam(ADStatus, ADStatusWaiting);
+                        setIntegerParam(ADStatus, mar345StatusWaiting);
                         callParamCallbacks();
                         epicsMutexUnlock(this->mutexId);
-                        status = epicsEventWaitWithTimeout(this->stopEventId, delayTime);
+                        status = epicsEventWaitWithTimeout(this->abortEventId, delayTime);
                         epicsMutexLock(this->mutexId);
+                        if (status == epicsEventWaitOK) break;
                     }
                 }
                 this->mode = mar345ModeIdle;
@@ -571,41 +584,36 @@ asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
 
     switch (function) {
     case ADAcquire:
-        if (this->mode != mar345ModeIdle) break;
-        if (value) {
+        if (value && (this->mode == mar345ModeIdle)) {
             /* Send an event to wake up the mar345 task.  */
             this->mode = mar345ModeAcquire;
             epicsEventSignal(this->startEventId);
         } 
-        if (!value) {
-            /* Abort operation */
+        if (!value && (this->mode != mar345ModeIdle)) {
+            /* Stop acquiring (ends exposure, does not abort) */
             epicsEventSignal(this->stopEventId);
         }
         break;
     case mar345Erase:
-        if (this->mode != mar345ModeIdle) break;
-        if (value) {
+        if (value && (this->mode == mar345ModeIdle)) {
             this->mode = mar345ModeErase;
             /* Send an event to wake up the mar345 task.  */
             epicsEventSignal(this->startEventId);
         } 
-        if (!value) {
-            /* Abort operation */
-            epicsEventSignal(this->stopEventId);
-        }
         break;
     case mar345ChangeMode:
-        if (this->mode != mar345ModeIdle) break;
-        if (value) {
-            this->mode = mar345ModeChange;
+        if (value && (this->mode == mar345ModeIdle)) {
+           this->mode = mar345ModeChange;
             /* Send an event to wake up the mar345 task.  */
             epicsEventSignal(this->startEventId);
         } 
-        if (!value) {
-            /* Abort operation */
-            epicsEventSignal(this->stopEventId);
-        }
         break;
+    case mar345Abort:
+        if (value && (this->mode != mar345ModeIdle)) {
+            /* Abort operation */
+            setIntegerParam(ADStatus, mar345StatusAborting);
+            epicsEventSignal(this->abortEventId);
+        }
     case ADShutterControl:
         setShutter(value);
         break;
@@ -708,6 +716,12 @@ mar345::mar345(const char *portName, const char *serverPort,
             driverName, functionName);
         return;
     }
+    this->abortEventId = epicsEventCreate(epicsEventEmpty);
+    if (!this->abortEventId) {
+        printf("%s:%s epicsEventCreate failure for abort event\n", 
+            driverName, functionName);
+        return;
+    }
 
     /* Create the epicsTimerQueue for exposure time handling */
     timerQ = epicsTimerQueueAllocate(1, epicsThreadPriorityScanHigh);
@@ -738,6 +752,7 @@ mar345::mar345(const char *portName, const char *serverPort,
     status |= setIntegerParam(mar345Size, mar345Size345);
     status |= setIntegerParam(mar345Res, mar345Res100);
     status |= setIntegerParam(mar345NumErase, 1);
+    status |= setIntegerParam(mar345NumErased  , 0);
     status |= setIntegerParam(mar345Erase, 0);
     status |= setIntegerParam(mar345Res, mar345Res100);
 
