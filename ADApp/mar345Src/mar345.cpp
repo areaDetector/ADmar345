@@ -201,11 +201,11 @@ void mar345::getImageData()
     /* Call the NDArray callback */
     /* Must release the lock here, or we can get into a deadlock, because we can
      * block on the plugin lock, and the plugin can be calling us */
-    epicsMutexUnlock(this->mutexId);
+    this->unlock();
     asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
          "%s:%s: calling NDArray callback\n", driverName, functionName);
     doCallbacksGenericPointer(pImage, NDArrayData, 0);
-    epicsMutexLock(this->mutexId);
+    this->lock();
 
     /* Free the image buffer */
     pImage->release();
@@ -274,9 +274,9 @@ asynStatus mar345::waitForCompletion(const char *doneString, double timeout)
  
     epicsTimeGetCurrent(&start);
     while (1) {
-        epicsMutexUnlock(this->mutexId);
+        this->unlock();
         status = readServer(response, sizeof(response), MAR345_POLL_DELAY);
-        epicsMutexLock(this->mutexId);
+        this->lock();
         if (status == asynSuccess) {
             if (strstr(response, doneString)) return(asynSuccess);
         }
@@ -437,9 +437,9 @@ asynStatus mar345::acquireFrame()
             status = asynError;
             break;
         }
-        epicsMutexUnlock(this->mutexId);
+        this->unlock();
         waitStatus = epicsEventWaitWithTimeout(this->stopEventId, MAR345_POLL_DELAY);
-        epicsMutexLock(this->mutexId);
+        this->lock();
         if (waitStatus == epicsEventWaitOK) {
             /* The acquisition was stopped before the time was complete */
             epicsTimerCancel(this->timerId);
@@ -503,18 +503,18 @@ void mar345::mar345Task()
     double elapsedTime, delayTime;
     const char *functionName = "mar345Task";
 
-    epicsMutexLock(this->mutexId);
+    this->lock();
 
     /* Loop forever */
     while (1) {
         setStringParam(ADStatusMessage, "Waiting for event");
         callParamCallbacks();
         /* Release the lock while we wait for an event that says acquire has started, then lock again */
-        epicsMutexUnlock(this->mutexId);
+        this->unlock();
         asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
             "%s:%s: waiting for start event\n", driverName, functionName);
         status = epicsEventWait(this->startEventId);
-        epicsMutexLock(this->mutexId);
+        this->lock();
 
         switch(this->mode) {
             case mar345ModeErase:
@@ -548,9 +548,9 @@ void mar345::mar345Task()
                     if (delayTime > 0.) {
                         setIntegerParam(ADStatus, mar345StatusWaiting);
                         callParamCallbacks();
-                        epicsMutexUnlock(this->mutexId);
+                        this->unlock();
                         status = epicsEventWaitWithTimeout(this->abortEventId, delayTime);
-                        epicsMutexLock(this->mutexId);
+                        this->lock();
                         if (status == epicsEventWaitOK) break;
                     }
                 }
