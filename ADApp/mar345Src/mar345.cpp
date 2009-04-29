@@ -1,8 +1,8 @@
 /* mar345.cpp
  *
  * This is a driver for a MAR 345 detector.
- * It uses a TCP/IP socket to communicate with the MARDTB program.
- * It reads files written by MARDTB to obtain the data.
+ * It uses a TCP/IP socket to communicate with the mar345dtb program.
+ * It reads files written by mar345dtb to obtain the data.
  *
  * Author: Mark Rivers
  *         University of Chicago
@@ -42,25 +42,28 @@
 #include "drvMAR345.h"
 #include "mar3xx_pck.h"
 
-
-#define MAX_MESSAGE_SIZE 256 /* Messages to/from server */
+/** Messages to/from server */
+#define MAX_MESSAGE_SIZE 256
 #define MAX_FILENAME_LEN 256
 #define MAR345_SOCKET_TIMEOUT 1.0
 #define MAR345_COMMAND_TIMEOUT 180.0
 #define MAR345_POLL_DELAY .01
 
+/** Trigger mode choices */
 typedef enum {
     TMInternal,
     TMExternal,
     TMAlignment
 } mar345TriggerMode_t;
 
+/** Erase mode choices */
 typedef enum {
     mar345EraseNone,
     mar345EraseBefore,
     mar345EraseAfter
 } mar345EraseMode_t;
 
+/** Readout size choices */
 typedef enum {
     mar345Size180,
     mar345Size240,
@@ -68,11 +71,13 @@ typedef enum {
     mar345Size345
 } mar345Size_t;
 
+/** Resolution choices */
 typedef enum {
     mar345Res100,
     mar345Res150
 } mar345Res_t;
 
+/** Mode choices */
 typedef enum {
     mar345ModeIdle,
     mar345ModeErase,
@@ -80,6 +85,7 @@ typedef enum {
     mar345ModeChange
 } mar345Mode_t;
 
+/** Status choices */
 typedef enum {
     mar345StatusIdle,
     mar345StatusExpose,
@@ -96,6 +102,15 @@ static int imageSizes[2][4] = {{1800, 2400, 3000, 3450},{1200, 1600, 2000, 2300}
     
 static const char *driverName = "mar345";
 
+/** Driver for mar345 online image plate detector; communicates with the mar345dtb program 
+  * over a TCP/IP socket.
+  * The mar345dtb program must be running and must be configured to listen for commands on a
+  * socket.  This is done by adding a line like the following to 
+  * the file /home/mar345/tables/config.xxx (where xxx is the detector serial number)
+  *  COMMAND PORT 5001
+  * In this example 5001 is the TCP/IP port number that the mar345dtb and this driver will use to
+  * communicate.
+  */
 class mar345 : public ADDriver {
 public:
     mar345(const char *portName, const char *mar345Port,
@@ -136,8 +151,7 @@ public:
     asynUser *pasynUserServer;
 };
 
-/* If we have any private driver parameters they begin with ADFirstDriverParam and should end
-   with ADLastDriverParam, which is used for setting the size of the parameter library table */
+/** Driver-specific parameters for the mar345 driver */
 typedef enum {
     mar345Erase
         = ADFirstDriverParam,
@@ -492,9 +506,9 @@ static void mar345TaskC(void *drvPvt)
     pPvt->mar345Task();
 }
 
+/** This thread controls handling of slow events - erase, acquire, change mode */
 void mar345::mar345Task()
 {
-    /* This thread controls handling of slow events - erase, acquire, change mode */
     int status = asynSuccess;
     int numImages, numImagesCounter;
     int imageMode;
@@ -574,6 +588,11 @@ void mar345::mar345Task()
 }
 
 
+/** Called when asyn clients call pasynInt32->write().
+  * This function performs actions for some parameters, including ADAcquire, mar345Erase, etc.
+  * For all parameters it sets the value in the parameter library and calls any registered callbacks..
+  * \param[in] pasynUser pasynUser structure that encodes the reason and address.
+  * \param[in] value Value to write. */
 asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
 {
     int function = pasynUser->reason;
@@ -638,38 +657,36 @@ asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
 
 
 
-/* asynDrvUser routines */
+/** Sets pasynUser->reason to one of the enum values for the parameters defined for
+  * this class if the drvInfo field matches one the strings defined for it.
+  * If the parameter is not recognized by this class then calls ADDriver::drvUserCreate.
+  * Uses asynPortDriver::drvUserCreateParam.
+  * \param[in] pasynUser pasynUser structure that driver modifies
+  * \param[in] drvInfo String containing information about what driver function is being referenced
+  * \param[out] pptypeName Location in which driver puts a copy of drvInfo.
+  * \param[out] psize Location where driver puts size of param 
+  * \return Returns asynSuccess if a matching string was found, asynError if not found. */
 asynStatus mar345::drvUserCreate(asynUser *pasynUser,
-                                      const char *drvInfo, 
-                                      const char **pptypeName, size_t *psize)
+                                       const char *drvInfo, 
+                                       const char **pptypeName, size_t *psize)
 {
     asynStatus status;
-    int param;
-    const char *functionName = "drvUserCreate";
+    //const char *functionName = "drvUserCreate";
+    
+    status = this->drvUserCreateParam(pasynUser, drvInfo, pptypeName, psize, 
+                                      mar345ParamString, NUM_MAR345_PARAMS);
 
-    /* See if this is one of our standard parameters */
-    status = findParam(mar345ParamString, NUM_MAR345_PARAMS, 
-                       drvInfo, &param);
-                                
-    if (status == asynSuccess) {
-        pasynUser->reason = param;
-        if (pptypeName) {
-            *pptypeName = epicsStrDup(drvInfo);
-        }
-        if (psize) {
-            *psize = sizeof(param);
-        }
-        asynPrint(pasynUser, ASYN_TRACE_FLOW,
-                  "%s:%s: drvInfo=%s, param=%d\n", 
-                  driverName, functionName, drvInfo, param);
-        return(asynSuccess);
-    }
-    
-    /* If not, then see if it is a base class parameter */
-    status = ADDriver::drvUserCreate(pasynUser, drvInfo, pptypeName, psize);
-    return(status);  
+    /* If not, then call the base class method, see if it is known there */
+    if (status) status = ADDriver::drvUserCreate(pasynUser, drvInfo, pptypeName, psize);
+    return(status);
 }
-    
+
+/** Report status of the driver.
+  * Prints details about the driver if details>0.
+  * It then calls the ADDriver::report() method.
+  * \param[in] fp File pointed passed by caller where the output is written to.
+  * \param[in] details If >0 then driver details are printed.
+  */
 void mar345::report(FILE *fp, int details)
 {
     fprintf(fp, "MAR-345 detector %s\n", this->portName);
@@ -685,6 +702,19 @@ extern "C" int mar345Config(const char *portName, const char *serverPort,
     return(asynSuccess);
 }
 
+/** Constructor for mar345 driver; most parameters are simply passed to ADDriver::ADDriver.
+  * After calling the base class constructor this method creates a thread to collect the detector data, 
+  * and sets reasonable default values the parameters defined in this class and ADStdDriverParams.h.
+  * \param[in] portName The name of the asyn port driver to be created.
+  * \param[in] serverPort The name of the asyn port driver previously created with drvAsynIPPortConfigure
+  *            connected to the mar345dtb program.
+  * \param[in] maxBuffers The maximum number of NDArray buffers that the NDArrayPool for this driver is 
+  *            allowed to allocate. Set this to -1 to allow an unlimited number of buffers.
+  * \param[in] maxMemory The maximum amount of memory that the NDArrayPool for this driver is 
+  *            allowed to allocate. Set this to -1 to allow an unlimited amount of memory.
+  * \param[in] priority The thread priority for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
+  * \param[in] stackSize The stack size for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
+  */
 mar345::mar345(const char *portName, const char *serverPort,
                                 int maxBuffers, size_t maxMemory,
                                 int priority, int stackSize)
