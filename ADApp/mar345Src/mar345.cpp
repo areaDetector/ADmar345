@@ -154,7 +154,7 @@ public:
 /** Driver-specific parameters for the mar345 driver */
 typedef enum {
     mar345Erase
-        = ADFirstDriverParam,
+        = ADLastStdParam,
     mar345EraseMode,
     mar345NumErase,
     mar345NumErased,
@@ -189,10 +189,10 @@ void mar345::getImageData()
     const char *functionName = "getImageData";
 
     /* Inquire about the image dimensions */
-    getStringParam(ADFullFileName, MAX_FILENAME_LEN, fullFileName);
-    getIntegerParam(ADImageSizeX, &dims[0]);
-    getIntegerParam(ADImageSizeY, &dims[1]);
-    getIntegerParam(ADImageCounter, &imageCounter);
+    getStringParam(NDFullFileName, MAX_FILENAME_LEN, fullFileName);
+    getIntegerParam(NDArraySizeX, &dims[0]);
+    getIntegerParam(NDArraySizeY, &dims[1]);
+    getIntegerParam(NDArrayCounter, &imageCounter);
     pImage = this->pNDArrayPool->alloc(2, dims, NDUInt16, 0, NULL);
 
     epicsSnprintf(statusMessage, sizeof(statusMessage), "Reading mar345 file %s", fullFileName);
@@ -317,9 +317,9 @@ asynStatus mar345::changeMode()
     getIntegerParam(mar345Size, &size);
     getIntegerParam(mar345Res, &res);
     sizeX = imageSizes[res][size];
-    setIntegerParam(ADImageSizeX, sizeX);
-    setIntegerParam(ADImageSizeY, sizeX);
-    setIntegerParam(ADImageSize, sizeX*sizeX*sizeof(epicsInt16));
+    setIntegerParam(NDArraySizeX, sizeX);
+    setIntegerParam(NDArraySizeY, sizeX);
+    setIntegerParam(NDArraySize, sizeX*sizeX*sizeof(epicsInt16));
     epicsSnprintf(this->toServer, sizeof(this->toServer), "COMMAND CHANGE %d", imageSizes[res][size]);
     writeServer(this->toServer);
     status = waitForCompletion("MODE_CHANGE  Ended o.k.", MAR345_COMMAND_TIMEOUT);
@@ -420,7 +420,7 @@ asynStatus mar345::acquireFrame()
     getIntegerParam(ADShutterMode, &shutterMode);
     getIntegerParam(mar345Size, &size);
     getIntegerParam(mar345Res, &res);
-    getIntegerParam(ADArrayCallbacks, &arrayCallbacks);
+    getIntegerParam(NDArrayCallbacks, &arrayCallbacks);
     getIntegerParam(mar345EraseMode, &eraseMode);
     if (shutterMode == ADShutterModeNone) useShutter=0; else useShutter=1;
 
@@ -475,16 +475,16 @@ asynStatus mar345::acquireFrame()
     setIntegerParam(ADStatus, mar345StatusScan);
     callParamCallbacks();
     epicsSnprintf(this->toServer, sizeof(this->toServer), "COMMAND SCAN %s", fullFileName);
-    setStringParam(ADFullFileName, fullFileName);
+    setStringParam(NDFullFileName, fullFileName);
     callParamCallbacks();
     writeServer(this->toServer);
     status = waitForCompletion("SCAN_DATA    Ended o.k.", MAR345_COMMAND_TIMEOUT);
     if (status) {
         return asynError;
     }
-    getIntegerParam(ADImageCounter, &imageCounter);
+    getIntegerParam(NDArrayCounter, &imageCounter);
     imageCounter++;
-    setIntegerParam(ADImageCounter, imageCounter);
+    setIntegerParam(NDArrayCounter, imageCounter);
     /* Call the callbacks to update any changes */
     callParamCallbacks();
 
@@ -771,7 +771,7 @@ mar345::mar345(const char *portName, const char *serverPort,
     /* Set some default values for parameters */
     status =  setStringParam (ADManufacturer, "MAR");
     status |= setStringParam (ADModel, "345");
-    status |= setIntegerParam(ADDataType,  NDInt16);
+    status |= setIntegerParam(NDDataType,  NDInt16);
     status |= setIntegerParam(ADImageMode, ADImageSingle);
     status |= setIntegerParam(ADTriggerMode, TMInternal);
     status |= setDoubleParam (ADAcquireTime, 1.);
