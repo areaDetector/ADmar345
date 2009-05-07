@@ -39,6 +39,8 @@ mar345App_LIBS += calc busy sscan autosave mca
 mar345App_LIBS += asyn
 mar345App_LIBS += $(EPICS_BASE_IOC_LIBS)
 
+mar345App_SYS_LIBS += tiff jpeg z
+
 #=============================
 
 include $(TOP)/configure/RULES
