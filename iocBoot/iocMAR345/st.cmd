@@ -21,12 +21,12 @@ dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDFile.template","P=13MAR345_1:,R=cam1:
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/mar345.template","P=13MAR345_1:,R=cam1:,PORT=MAR,ADDR=0,TIMEOUT=1,MARSERVER_PORT=marServer")
 
 # Create a standard arrays plugin
-drvNDStdArraysConfigure("MARImage", 5, 0, "MAR", 0, -1)
+NDStdArraysConfigure("MARImage", 5, 0, "MAR", 0, -1)
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDPluginBase.template","P=13MAR345_1:,R=image1:,PORT=MARImage,ADDR=0,TIMEOUT=1,NDARRAY_PORT=MAR,NDARRAY_ADDR=0")
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDStdArrays.template", "P=13MAR345_1:,R=image1:,PORT=MARImage,ADDR=0,TIMEOUT=1,SIZE=16,FTVL=SHORT,NELEMENTS=12000000")
 
 # Create an ROI plugin
-drvNDROIConfigure("MARROI", 5, 0, "MAR", 0, 4, 20, -1)
+NDROIConfigure("MARROI", 5, 0, "MAR", 0, 4, 20, -1)
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDPluginBase.template","P=13MAR345_1:,R=ROI1:,  PORT=MARROI,ADDR=0,TIMEOUT=1,NDARRAY_PORT=MAR,NDARRAY_ADDR=0")
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDROI.template",       "P=13MAR345_1:,R=ROI1:,  PORT=MARROI,ADDR=0,TIMEOUT=1")
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDROIN.template",      "P=13MAR345_1:,R=ROI1:0:,PORT=MARROI,ADDR=0,TIMEOUT=1,HIST_SIZE=256")
