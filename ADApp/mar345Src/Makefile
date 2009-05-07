@@ -16,7 +16,6 @@ PROD_IOC_solaris += mar345App
 
 LIB_SRCS += mar345.cpp
 LIB_SRCS += mar3xx_pck.c
-LIB_SRCS += drvMAR345Epics.c
 LIB_LIBS += NDPlugin ADBase netCDF
 LIB_LIBS += calc busy sscan autosave mca
 LIB_LIBS += asyn
