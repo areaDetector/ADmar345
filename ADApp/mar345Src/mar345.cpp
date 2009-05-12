@@ -830,4 +830,6 @@ static void mar345Register(void)
     iocshRegister(&configMAR345, configMAR345CallFunc);
 }
 
+extern "C" {
 epicsExportRegistrar(mar345Register);
+}
