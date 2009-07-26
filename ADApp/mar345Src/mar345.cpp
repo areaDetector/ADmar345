@@ -211,6 +211,9 @@ void mar345::getImageData()
     pImage->uniqueId = imageCounter;
     pImage->timeStamp = this->acqStartTime.secPastEpoch + this->acqStartTime.nsec / 1.e9;
 
+    /* Get any attributes that have been defined for this driver */        
+    this->getAttributes(pImage);
+
     /* Call the NDArray callback */
     /* Must release the lock here, or we can get into a deadlock, because we can
      * block on the plugin lock, and the plugin can be calling us */
@@ -636,7 +639,8 @@ asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
         setShutter(value);
         break;
     default:
-        status = ADDriver::writeInt32(pasynUser, value);
+        /* If this is not a parameter we have handled call the base class */
+        if (function < ADLastStdParam) status = ADDriver::writeInt32(pasynUser, value);
         break;
     }
         
