@@ -30,7 +30,6 @@ DBD += mar345Support.dbd
 
 # <name>_registerRecordDeviceDriver.cpp will be created from <name>.dbd
 mar345App_SRCS_DEFAULT += mar345App_registerRecordDeviceDriver.cpp mar345AppMain.cpp
-mar345App_SRCS_vxWorks += mar345App_registerRecordDeviceDriver.cpp
 
 # Add locally compiled object code
 mar345App_LIBS += mar345
@@ -39,7 +38,15 @@ mar345App_LIBS += calc busy sscan autosave mca
 mar345App_LIBS += asyn
 mar345App_LIBS += $(EPICS_BASE_IOC_LIBS)
 
-mar345App_SYS_LIBS += tiff jpeg z
+# To use versions of these libraries supplied with areaDetector use this line
+mar345App_LIBS_Linux        += NeXus mfhdf df hdf5 mxml
+# To use system versions of these libraries use this line
+#mar345App_SYS_LIBS_Linux    += NeXus mfhdf df hdf5 mxml
+
+# To use versions of these libraries supplied with areaDetector use this line
+mar345App_LIBS_Linux        += tiff jpeg z
+# To use system versions of these libraries use this line
+#mar345App_SYS_LIBS_Linux    += tiff jpeg z
 
 #=============================
 
