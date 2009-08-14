@@ -184,6 +184,7 @@ void mar345::getImageData()
     int imageCounter;
     NDArray *pImage;
     char statusMessage[MAX_MESSAGE_SIZE];
+    char errorBuffer[MAX_MESSAGE_SIZE], *pErrorMessage;
     FILE *input;
     const char *functionName = "getImageData";
 
@@ -199,9 +200,10 @@ void mar345::getImageData()
     callParamCallbacks();
     input = fopen(fullFileName, "rb");
     if (input == NULL) {
+        pErrorMessage = strerror_r(errno, errorBuffer, sizeof(errorBuffer));
         asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR,
-            "%s%s: unable to open input file %s\n",
-            driverName, functionName, fullFileName);
+            "%s%s: unable to open input file %s, error=%s\n",
+            driverName, functionName, fullFileName, pErrorMessage);
         return;
     }
 	get_pck(input, (epicsInt16 *)pImage->pData);
