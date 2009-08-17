@@ -16,7 +16,7 @@ asynSetTraceIOMask("marServer",0,2)
 mar345Config("MAR", "marServer", 20, 200000000)
 asynSetTraceIOMask("MAR",0,2)
 #asynSetTraceMask("MAR",0,255)
-dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/ADBase.template",  "P=13MAR345_1:,R=cam1:,PORT=MAR,ADDR=0,TIMEOUT=1")
+dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/ADBase.template","P=13MAR345_1:,R=cam1:,PORT=MAR,ADDR=0,TIMEOUT=1")
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDFile.template","P=13MAR345_1:,R=cam1:,PORT=MAR,ADDR=0,TIMEOUT=1")
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/mar345.template","P=13MAR345_1:,R=cam1:,PORT=MAR,ADDR=0,TIMEOUT=1,MARSERVER_PORT=marServer")
 
