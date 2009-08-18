@@ -121,9 +121,14 @@ public:
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo, 
                                      const char **pptypeName, size_t *psize);
     void report(FILE *fp, int details);
-                                        
+
+    epicsEventId startEventId; /**< Should be private but accessed from C, must be public */
+    epicsEventId stopEventId;  /**< Should be private but accessed from C, must be public */
+    epicsEventId abortEventId; /**< Should be private but accessed from C, must be public */
+    void mar345Task();         /**< Should be private but accessed from C, must be public */
+
+private:                                        
     /* These are the methods that are new to this class */
-    void mar345Task();
     asynStatus readFile(const char *fileName, NDArray *pImage);
     asynStatus writeServer(const char *output);
     asynStatus readServer(char *input, size_t maxChars, double timeout);
@@ -135,11 +140,8 @@ public:
     void getImageDataTask();
     void getImageData();
     asynStatus waitForCompletion(const char *doneString, double timeout);
-   
+  
     /* Our data */
-    epicsEventId startEventId;
-    epicsEventId stopEventId;
-    epicsEventId abortEventId;
     epicsTimeStamp acqStartTime;
     epicsTimeStamp acqEndTime;
     epicsTimerId timerId;
@@ -164,6 +166,7 @@ typedef enum {
     ADLastDriverParam
 } mar345Param_t;
 
+/** Driver-specific parameter strings for the mar345 driver */
 static asynParamString_t mar345ParamString[] = {
     {mar345Erase,              "MAR_ERASE"},
     {mar345EraseMode,          "MAR_ERASE_MODE"},
@@ -717,8 +720,8 @@ extern "C" int mar345Config(const char *portName, const char *serverPort,
   *            allowed to allocate. Set this to -1 to allow an unlimited number of buffers.
   * \param[in] maxMemory The maximum amount of memory that the NDArrayPool for this driver is 
   *            allowed to allocate. Set this to -1 to allow an unlimited amount of memory.
-  * \param[in] priority The thread priority for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
-  * \param[in] stackSize The stack size for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
+  * \param[in] priority The thread priority for the asyn port driver thread.
+  * \param[in] stackSize The stack size for the asyn port driver thread.
   */
 mar345::mar345(const char *portName, const char *serverPort,
                                 int maxBuffers, size_t maxMemory,
