@@ -98,6 +98,16 @@ typedef enum {
 
 
 static int imageSizes[2][4] = {{1800, 2400, 3000, 3450},{1200, 1600, 2000, 2300}}; 
+
+/** Driver-specific parameter strings for the mar345 driver */
+#define mar345EraseString         "MAR_ERASE"
+#define mar345EraseModeString     "MAR_ERASE_MODE"
+#define mar345NumEraseString      "MAR_NUM_ERASE"
+#define mar345NumErasedString     "MAR_NUM_ERASED"
+#define mar345ChangeModeString    "MAR_CHANGE_MODE"
+#define mar345SizeString          "MAR_SIZE"
+#define mar345ResString           "MAR_RESOLUTION"
+#define mar345AbortString         "MAR_ABORT"
     
 static const char *driverName = "mar345";
 
@@ -118,14 +128,24 @@ public:
                  
     /* These are the methods that we override from ADDriver */
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 value);
-    virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo, 
-                                     const char **pptypeName, size_t *psize);
     void report(FILE *fp, int details);
 
     epicsEventId startEventId; /**< Should be private but accessed from C, must be public */
     epicsEventId stopEventId;  /**< Should be private but accessed from C, must be public */
     epicsEventId abortEventId; /**< Should be private but accessed from C, must be public */
     void mar345Task();         /**< Should be private but accessed from C, must be public */
+
+protected:
+    int mar345Erase;
+    #define FIRST_MAR345_PARAM mar345Erase
+    int mar345EraseMode;
+    int mar345NumErase;
+    int mar345NumErased;
+    int mar345ChangeMode;
+    int mar345Size;
+    int mar345Res;
+    int mar345Abort;
+    #define LAST_MAR345_PARAM mar345Abort
 
 private:                                        
     /* These are the methods that are new to this class */
@@ -152,33 +172,7 @@ private:
     asynUser *pasynUserServer;
 };
 
-/** Driver-specific parameters for the mar345 driver */
-typedef enum {
-    mar345Erase
-        = ADLastStdParam,
-    mar345EraseMode,
-    mar345NumErase,
-    mar345NumErased,
-    mar345ChangeMode,
-    mar345Size,
-    mar345Res,
-    mar345Abort,
-    ADLastDriverParam
-} mar345Param_t;
-
-/** Driver-specific parameter strings for the mar345 driver */
-static asynParamString_t mar345ParamString[] = {
-    {mar345Erase,              "MAR_ERASE"},
-    {mar345EraseMode,          "MAR_ERASE_MODE"},
-    {mar345NumErase,           "MAR_NUM_ERASE"},
-    {mar345NumErased,          "MAR_NUM_ERASED"},
-    {mar345ChangeMode,         "MAR_CHANGE_MODE"},
-    {mar345Size,               "MAR_SIZE"},
-    {mar345Res,                "MAR_RESOLUTION"},
-    {mar345Abort,              "MAR_ABORT"},
-};
-
-#define NUM_MAR345_PARAMS (sizeof(mar345ParamString)/sizeof(mar345ParamString[0]))
+#define NUM_MAR345_PARAMS (&LAST_MAR345_PARAM - &FIRST_MAR345_PARAM + 1)
 
 void mar345::getImageData()
 {
@@ -608,8 +602,7 @@ asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
 
     status = setIntegerParam(function, value);
 
-    switch (function) {
-    case ADAcquire:
+    if (function == ADAcquire) {
         if (value && (this->mode == mar345ModeIdle)) {
             /* Send an event to wake up the mar345 task.  */
             this->mode = mar345ModeAcquire;
@@ -619,34 +612,29 @@ asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
             /* Stop acquiring (ends exposure, does not abort) */
             epicsEventSignal(this->stopEventId);
         }
-        break;
-    case mar345Erase:
+    } else if (function == mar345Erase) {
         if (value && (this->mode == mar345ModeIdle)) {
             this->mode = mar345ModeErase;
             /* Send an event to wake up the mar345 task.  */
             epicsEventSignal(this->startEventId);
         } 
-        break;
-    case mar345ChangeMode:
+    } else if (function == mar345ChangeMode) {
         if (value && (this->mode == mar345ModeIdle)) {
            this->mode = mar345ModeChange;
             /* Send an event to wake up the mar345 task.  */
             epicsEventSignal(this->startEventId);
         } 
-        break;
-    case mar345Abort:
+    } else if (function == mar345Abort) {
         if (value && (this->mode != mar345ModeIdle)) {
             /* Abort operation */
             setIntegerParam(ADStatus, mar345StatusAborting);
             epicsEventSignal(this->abortEventId);
         }
-    case ADShutterControl:
+    } else if (function == ADShutterControl) {
         setShutter(value);
-        break;
-    default:
+    } else {
         /* If this is not a parameter we have handled call the base class */
-        if (function < ADLastStdParam) status = ADDriver::writeInt32(pasynUser, value);
-        break;
+        if (function < FIRST_MAR345_PARAM) status = ADDriver::writeInt32(pasynUser, value);
     }
         
     /* Do callbacks so higher layers see any changes */
@@ -665,30 +653,6 @@ asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
 
 
 
-/** Sets pasynUser->reason to one of the enum values for the parameters defined for
-  * this class if the drvInfo field matches one the strings defined for it.
-  * If the parameter is not recognized by this class then calls ADDriver::drvUserCreate.
-  * Uses asynPortDriver::drvUserCreateParam.
-  * \param[in] pasynUser pasynUser structure that driver modifies
-  * \param[in] drvInfo String containing information about what driver function is being referenced
-  * \param[out] pptypeName Location in which driver puts a copy of drvInfo.
-  * \param[out] psize Location where driver puts size of param 
-  * \return Returns asynSuccess if a matching string was found, asynError if not found. */
-asynStatus mar345::drvUserCreate(asynUser *pasynUser,
-                                       const char *drvInfo, 
-                                       const char **pptypeName, size_t *psize)
-{
-    asynStatus status;
-    //const char *functionName = "drvUserCreate";
-    
-    status = this->drvUserCreateParam(pasynUser, drvInfo, pptypeName, psize, 
-                                      mar345ParamString, NUM_MAR345_PARAMS);
-
-    /* If not, then call the base class method, see if it is known there */
-    if (status) status = ADDriver::drvUserCreate(pasynUser, drvInfo, pptypeName, psize);
-    return(status);
-}
-
 /** Report status of the driver.
   * Prints details about the driver if details>0.
   * It then calls the ADDriver::report() method.
@@ -727,7 +691,7 @@ mar345::mar345(const char *portName, const char *serverPort,
                                 int maxBuffers, size_t maxMemory,
                                 int priority, int stackSize)
 
-    : ADDriver(portName, 1, ADLastDriverParam, maxBuffers, maxMemory,
+    : ADDriver(portName, 1, NUM_MAR345_PARAMS, maxBuffers, maxMemory,
                0, 0,             /* No interfaces beyond those set in ADDriver.cpp */
                ASYN_CANBLOCK, 1, /* ASYN_CANBLOCK=1, ASYN_MULTIDEVICE=0, autoConnect=1 */
                priority, stackSize),
@@ -738,6 +702,15 @@ mar345::mar345(const char *portName, const char *serverPort,
     epicsTimerQueueId timerQ;
     const char *functionName = "mar345";
     int dims[2];
+
+    addParam(mar345EraseString,     &mar345Erase);
+    addParam(mar345EraseModeString, &mar345EraseMode);
+    addParam(mar345NumEraseString,  &mar345NumErase);
+    addParam(mar345NumErasedString, &mar345NumErased);
+    addParam(mar345ChangeModeString,&mar345ChangeMode);
+    addParam(mar345SizeString,      &mar345Size);
+    addParam(mar345ResString,       &mar345Res);
+    addParam(mar345AbortString,     &mar345Abort);
 
     this->mode = mar345ModeIdle;
     
