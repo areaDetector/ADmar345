@@ -703,14 +703,14 @@ mar345::mar345(const char *portName, const char *serverPort,
     const char *functionName = "mar345";
     int dims[2];
 
-    addParam(mar345EraseString,     &mar345Erase);
-    addParam(mar345EraseModeString, &mar345EraseMode);
-    addParam(mar345NumEraseString,  &mar345NumErase);
-    addParam(mar345NumErasedString, &mar345NumErased);
-    addParam(mar345ChangeModeString,&mar345ChangeMode);
-    addParam(mar345SizeString,      &mar345Size);
-    addParam(mar345ResString,       &mar345Res);
-    addParam(mar345AbortString,     &mar345Abort);
+    createParam(mar345EraseString,     asynParamInt32, &mar345Erase);
+    createParam(mar345EraseModeString, asynParamInt32, &mar345EraseMode);
+    createParam(mar345NumEraseString,  asynParamInt32, &mar345NumErase);
+    createParam(mar345NumErasedString, asynParamInt32, &mar345NumErased);
+    createParam(mar345ChangeModeString,asynParamInt32, &mar345ChangeMode);
+    createParam(mar345SizeString,      asynParamInt32, &mar345Size);
+    createParam(mar345ResString,       asynParamInt32, &mar345Res);
+    createParam(mar345AbortString,     asynParamInt32, &mar345Abort);
 
     this->mode = mar345ModeIdle;
     
