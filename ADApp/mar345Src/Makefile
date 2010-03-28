@@ -17,6 +17,8 @@ PROD_IOC_solaris += mar345App
 LIB_SRCS += mar345.cpp
 LIB_SRCS += mar3xx_pck.c
 LIB_LIBS += NDPlugin ADBase netCDF
+LIB_LIBS_Linux += PvAPI ImageLib
+LIB_LIBS_WIN32 += PvAPI ImageLib
 LIB_LIBS += calc busy sscan autosave mca
 LIB_LIBS += asyn
 LIB_LIBS += $(EPICS_BASE_IOC_LIBS)
@@ -33,6 +35,8 @@ mar345App_SRCS_DEFAULT += mar345App_registerRecordDeviceDriver.cpp mar345AppMain
 # Add locally compiled object code
 mar345App_LIBS += mar345
 mar345App_LIBS += NDPlugin ADBase netCDF
+mar345App_LIBS_Linux += PvAPI ImageLib
+mar345App_LIBS_WIN32 += PvAPI ImageLib
 mar345App_LIBS += calc busy sscan autosave mca
 mar345App_LIBS += asyn
 mar345App_LIBS += $(EPICS_BASE_IOC_LIBS)
