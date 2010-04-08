@@ -51,6 +51,9 @@ mar345App_LIBS_Linux        += tiff jpeg z
 # To use system versions of these libraries use this line
 #mar345App_SYS_LIBS_Linux    += tiff jpeg z
 
+mar345App_SYS_LIBS_solaris   += tiff
+mar345App_LIBS_solaris += NeXusCPP NeXus hdf5_cpp hdf5 mxml jpeg sz z
+
 #=============================
 
 include $(TOP)/configure/RULES
