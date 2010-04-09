@@ -7,6 +7,8 @@ mar345App_registerRecordDeviceDriver(pdbbase)
 epicsEnvSet("PREFIX", "13MAR345_1:")
 epicsEnvSet("PORT",   "MAR")
 epicsEnvSet("QSIZE",  "20")
+epicsEnvSet("XSIZE",  "3450")
+epicsEnvSet("YSIZE",  "3450")
 
 ###
 # Create the asyn port to talk to the MAR on port 5001
