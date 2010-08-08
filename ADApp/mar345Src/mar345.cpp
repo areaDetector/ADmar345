@@ -128,7 +128,8 @@ public:
                  
     /* These are the methods that we override from ADDriver */
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 value);
-    void report(FILE *fp, int details);
+    virtual void setShutter(int open);
+    virtual void report(FILE *fp, int details);
 
     epicsEventId startEventId; /**< Should be private but accessed from C, must be public */
     epicsEventId stopEventId;  /**< Should be private but accessed from C, must be public */
@@ -156,7 +157,6 @@ private:
     asynStatus changeMode();
     asynStatus acquireFrame();
     void readoutFrame(int bufferNumber, const char* fileName, int wait);
-    void setShutter(int open);
     void getImageDataTask();
     void getImageData();
     asynStatus waitForCompletion(const char *doneString, double timeout);
@@ -630,8 +630,6 @@ asynStatus mar345::writeInt32(asynUser *pasynUser, epicsInt32 value)
             setIntegerParam(ADStatus, mar345StatusAborting);
             epicsEventSignal(this->abortEventId);
         }
-    } else if (function == ADShutterControl) {
-        setShutter(value);
     } else {
         /* If this is not a parameter we have handled call the base class */
         if (function < FIRST_MAR345_PARAM) status = ADDriver::writeInt32(pasynUser, value);
