@@ -5,11 +5,13 @@ include $(TOP)/configure/CONFIG
 #=============================
 
 LIBRARY_IOC_Linux += mar345
+LIBRARY_IOC_Darwin += mar345
 
 LIB_SRCS += mar345.cpp
 LIB_SRCS += mar3xx_pck.c
 
 PROD_IOC_Linux += mar345App
+PROD_IOC_Darwin += mar345App
 
 #==================================
 
