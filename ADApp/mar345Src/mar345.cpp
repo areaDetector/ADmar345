@@ -203,7 +203,7 @@ void mar345::getImageData()
             driverName, functionName, fullFileName, errorBuffer);
         return;
     }
-	get_pck(input, (epicsInt16 *)pImage->pData);
+    get_pck(input, (epicsInt16 *)pImage->pData);
     fclose(input);
 
     /* Put the frame number and time stamp into the buffer */
