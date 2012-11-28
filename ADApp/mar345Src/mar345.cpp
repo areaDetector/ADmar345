@@ -172,12 +172,13 @@ private:
     asynUser *pasynUserServer;
 };
 
-#define NUM_MAR345_PARAMS (&LAST_MAR345_PARAM - &FIRST_MAR345_PARAM + 1)
+#define NUM_MAR345_PARAMS ((int)(&LAST_MAR345_PARAM - &FIRST_MAR345_PARAM + 1))
 
 void mar345::getImageData()
 {
     char fullFileName[MAX_FILENAME_LEN];
-    int dims[2];
+    size_t dims[2];
+    int itemp;
     int imageCounter;
     NDArray *pImage;
     char statusMessage[MAX_MESSAGE_SIZE];
@@ -187,8 +188,8 @@ void mar345::getImageData()
 
     /* Inquire about the image dimensions */
     getStringParam(NDFullFileName, MAX_FILENAME_LEN, fullFileName);
-    getIntegerParam(NDArraySizeX, &dims[0]);
-    getIntegerParam(NDArraySizeY, &dims[1]);
+    getIntegerParam(NDArraySizeX, &itemp); dims[0] = itemp;
+    getIntegerParam(NDArraySizeY, &itemp); dims[1] = itemp;
     getIntegerParam(NDArrayCounter, &imageCounter);
     pImage = this->pNDArrayPool->alloc(2, dims, NDUInt16, 0, NULL);
 
@@ -699,7 +700,7 @@ mar345::mar345(const char *portName, const char *serverPort,
     int status = asynSuccess;
     epicsTimerQueueId timerQ;
     const char *functionName = "mar345";
-    int dims[2];
+    size_t dims[2];
 
     createParam(mar345EraseString,     asynParamInt32, &mar345Erase);
     createParam(mar345EraseModeString, asynParamInt32, &mar345EraseMode);
@@ -743,8 +744,8 @@ mar345::mar345(const char *portName, const char *serverPort,
     dims[0] = 3450;
     dims[1] = 3450;
     /* Allocate the raw buffer we use to files.  Only do this once */
-    setIntegerParam(ADMaxSizeX, dims[0]);
-    setIntegerParam(ADMaxSizeY, dims[1]);
+    setIntegerParam(ADMaxSizeX, (int)dims[0]);
+    setIntegerParam(ADMaxSizeY, (int)dims[1]);
     this->pData = this->pNDArrayPool->alloc(2, dims, NDInt16, 0, NULL);
 
     /* Set some default values for parameters */
