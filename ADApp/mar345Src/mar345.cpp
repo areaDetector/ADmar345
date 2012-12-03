@@ -260,8 +260,10 @@ asynStatus mar345::readServer(char *input, size_t maxChars, double timeout)
     int eomReason;
     const char *functionName="readServer";
 
+    unlock();
     status = pasynOctetSyncIO->read(pasynUser, input, maxChars, timeout,
                                     &nread, &eomReason);
+    lock();
     if (nread == 0) return(status);
     if (status) asynPrint(pasynUser, ASYN_TRACE_ERROR,
                     "%s:%s, timeout=%f, status=%d received %d bytes\n%s\n",
@@ -290,9 +292,7 @@ asynStatus mar345::waitForCompletion(const char *doneString, double timeout)
  
     epicsTimeGetCurrent(&start);
     while (1) {
-        this->unlock();
         status = readServer(response, sizeof(response), MAR345_POLL_DELAY);
-        this->lock();
         if (status == asynSuccess) {
             if (strstr(response, doneString)) return(asynSuccess);
         }
@@ -364,10 +364,11 @@ asynStatus mar345::erase()
 void mar345::setShutter(int open)
 {
     ADShutterMode_t shutterMode;
+    int itemp;
     double delay;
     double shutterOpenDelay, shutterCloseDelay;
     
-    getIntegerParam(ADShutterMode, (int *)&shutterMode);
+    getIntegerParam(ADShutterMode, &itemp); shutterMode = (ADShutterMode_t)itemp;
     getDoubleParam(ADShutterOpenDelay, &shutterOpenDelay);
     getDoubleParam(ADShutterCloseDelay, &shutterCloseDelay);
     
