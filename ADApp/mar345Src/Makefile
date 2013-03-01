@@ -28,6 +28,7 @@ PROD_SRCS += mar345App_registerRecordDeviceDriver.cpp mar345AppMain.cpp
 PROD_LIBS += mar345
 
 include $(TOP)/ADApp/commonDriverMakefile
+$(PROD_NAME)_DBD += drvAsynIPPort.dbd
 
 #=============================
 
