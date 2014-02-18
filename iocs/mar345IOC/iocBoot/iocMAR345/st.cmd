@@ -20,7 +20,7 @@ asynOctetSetOutputEos("marServer", 0, "\n")
 asynSetTraceIOMask("marServer",0,2)
 #asynSetTraceMask("marServer",0,255)
 
-mar345Config("$(PORT)", "marServer", 20, 200000000)
+mar345Config("$(PORT)", "marServer", 0, 0)
 asynSetTraceIOMask("$(PORT)",0,2)
 #asynSetTraceMask("$(PORT)",0,255)
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/ADBase.template","P=$(PREFIX),R=cam1:,PORT=$(PORT),ADDR=0,TIMEOUT=1")
@@ -33,7 +33,8 @@ dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDPluginBase.template","P=$(PREFIX),R=i
 dbLoadRecords("$(AREA_DETECTOR)/ADApp/Db/NDStdArrays.template", "P=$(PREFIX),R=image1:,PORT=Image1,ADDR=0,TIMEOUT=1,TYPE=Int16,FTVL=SHORT,NELEMENTS=12000000")
 
 # Load all other plugins using commonPlugins.cmd
-< ../commonPlugins.cmd
+< $(ADCORE)/iocBoot/commonPlugins.cmd
+set_requestfile_path("$(ADMAR345)/mar345App/Db")
 
 #asynSetTraceMask("$(PORT)",0,3)
 #asynSetTraceIOMask("$(PORT)",0,4)
