@@ -1,7 +1,7 @@
 < envPaths
 errlogInit(20000)
 
-dbLoadDatabase("$(AREA_DETECTOR)/dbd/mar345App.dbd")
+dbLoadDatabase("$(TOP)/dbd/mar345App.dbd")
 mar345App_registerRecordDeviceDriver(pdbbase) 
 
 epicsEnvSet("PREFIX", "13MAR345_1:")
