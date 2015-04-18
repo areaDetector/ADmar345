@@ -2,6 +2,9 @@
 # Mark Rivers
 # October 31, 2008
 
+include "ADBase.template"
+include "NDFile.template"
+
 # Status poll.  This can normally be Passive, except when ArrayCallbacks is 0 and Overlap is 1.
 # In that case the state will appear to be busy when it is idle, and this polling should be
 # turned on to avoid confusion
