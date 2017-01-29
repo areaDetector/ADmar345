@@ -23,6 +23,11 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
+R2-2 (XXX-January-2017)
+----
+* Changed medm screen layout for larger ADSetup.adl in ADCore R2-6.
+
+
 R2-1 (18-April-2015)
 ----
 * Changes for compatibility with ADCore R2-2.
